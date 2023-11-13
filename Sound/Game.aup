@@ -1,0 +1,48 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE project PUBLIC "-//audacityproject-1.3.0//DTD//EN" "http://audacity.sourceforge.net/xml/audacityproject-1.3.0.dtd" >
+<project xmlns="http://audacity.sourceforge.net/xml/" projname="Game_data" version="1.3.0" audacityversion="2.1.1" sel0="0.0000000000" sel1="0.0000000000" vpos="0" h="0.0000000000" zoom="97.2120705858" rate="11025.0" snapto="off" selectionformat="hh:mm:ss + milliseconds" frequencyformat="Hz" bandwidthformat="octaves">
+	<tags>
+		<tag name="GENRE" value="Free Music"/>
+		<tag name="ARTIST" value="CloZee"/>
+		<tag name="YEAR" value="2015"/>
+		<tag name="ALBUM" value="Koto"/>
+	</tags>
+	<wavetrack name="CloZee - Koto" channel="0" linked="1" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="844237">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000011.au" len="165362" min="-1.044933" max="1.014047" rms="0.30653"/>
+				</waveblock>
+				<waveblock start="165362">
+					<simpleblockfile filename="e0000115.au" len="262144" min="-1.073622" max="1.036132" rms="0.340171"/>
+				</waveblock>
+				<waveblock start="427506">
+					<simpleblockfile filename="e000076f.au" len="262144" min="-1.038266" max="1.023197" rms="0.33578"/>
+				</waveblock>
+				<waveblock start="689650">
+					<simpleblockfile filename="e000020c.au" len="154587" min="-1.052403" max="1.026611" rms="0.313932"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="CloZee - Koto" channel="1" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="844237">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000b43.au" len="165362" min="-1.031226" max="1.006014" rms="0.310439"/>
+				</waveblock>
+				<waveblock start="165362">
+					<simpleblockfile filename="e000018c.au" len="262144" min="-1.055053" max="1.058157" rms="0.345606"/>
+				</waveblock>
+				<waveblock start="427506">
+					<simpleblockfile filename="e00002c7.au" len="262144" min="-1.055037" max="1.074659" rms="0.345996"/>
+				</waveblock>
+				<waveblock start="689650">
+					<simpleblockfile filename="e0000480.au" len="154587" min="-1.039215" max="1.051741" rms="0.321535"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+</project>

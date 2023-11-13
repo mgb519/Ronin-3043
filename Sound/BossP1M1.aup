@@ -1,0 +1,36 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE project PUBLIC "-//audacityproject-1.3.0//DTD//EN" "http://audacity.sourceforge.net/xml/audacityproject-1.3.0.dtd" >
+<project xmlns="http://audacity.sourceforge.net/xml/" projname="BossP1M1_data" version="1.3.0" audacityversion="2.1.1" sel0="0.0000000000" sel1="0.0000000000" vpos="0" h="0.0000000000" zoom="153.7485642686" rate="11025.0" snapto="off" selectionformat="hh:mm:ss + milliseconds" frequencyformat="Hz" bandwidthformat="octaves">
+	<tags>
+		<tag name="GENRE" value="Free Music"/>
+		<tag name="ARTIST" value="CloZee"/>
+		<tag name="YEAR" value="2015"/>
+		<tag name="ALBUM" value="Koto"/>
+	</tags>
+	<wavetrack name="CloZee - Koto" channel="0" linked="1" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="423651">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000d59.au" len="164396" min="-1.107721" max="1.11145" rms="0.368864"/>
+				</waveblock>
+				<waveblock start="164396">
+					<simpleblockfile filename="e000043c.au" len="259255" min="-1.07946" max="1.082819" rms="0.38023"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+	<wavetrack name="CloZee - Koto" channel="1" linked="0" mute="0" solo="0" height="150" minimized="0" isSelected="1" rate="44100" gain="1.0" pan="0.0">
+		<waveclip offset="0.00000000">
+			<sequence maxsamples="262144" sampleformat="262159" numsamples="423651">
+				<waveblock start="0">
+					<simpleblockfile filename="e0000f70.au" len="164396" min="-1.072147" max="1.049391" rms="0.370382"/>
+				</waveblock>
+				<waveblock start="164396">
+					<simpleblockfile filename="e0000d45.au" len="259255" min="-1.089448" max="1.084892" rms="0.379029"/>
+				</waveblock>
+			</sequence>
+			<envelope numpoints="0"/>
+		</waveclip>
+	</wavetrack>
+</project>

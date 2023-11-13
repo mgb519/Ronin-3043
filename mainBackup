@@ -1,0 +1,677 @@
+#include "myLib.h"
+#include "player.h"
+#include "nearBackground.h"
+#include "collisionmap.h"
+#include "trees.h"
+#include "furtherTrees.h"
+#include "titleSong.h"
+#include "GameM1.h"
+#include "GameM2.h"
+#include "swordSound1.h"
+#include "swordSound2.h"
+#include "swordSound3.h"
+#include "playerSprites.h"
+#include "practiceSprites.h"
+
+
+#define ROWMASK 0xFF
+#define COLMASK 0x1FF
+
+unsigned int buttons;
+unsigned int oldButtons;
+
+//****** PROTOTYPES ********//
+void initStart();
+void updateStart();
+void initGame();
+void updateGame();
+void initPause();
+void updatePause();
+void initWin();
+void updateWin();
+void initLose();
+void updateLose();
+void hideSprites();
+void animate();
+void animatePlayer();
+void animatePractice();
+void updateOAM();
+
+// TODO: Be aware this exists, enums for the subpalettes of of the main palettes
+enum { NORMALSKY, FOREST, ALTSKY};
+enum { START, GAME, PAUSE, WIN, LOSE};
+int state = START;
+
+// TODO: Be aware of this too, we will use this variable to determine how BG1 is colored
+int bg1PalIndex = NORMALSKY;
+
+int hOff=0;
+int vOff=0;
+int hCamOff;
+int vCamOff;
+
+OBJ_ATTR shadowOAM[128];
+
+typedef struct  
+{
+	int row;
+	int col;
+	int bigRow;
+	int bigCol;
+
+	int rdel;
+	int cdel;
+
+	int width;
+	int height;
+
+	int aniCounter;
+	int aniState;
+	int actionState;
+	int prevAniState;
+	int left;
+    int currFrame;
+    int queueSwing;
+
+
+    int hp;
+    int maxHp;
+    int combo;
+    int comboTimer;
+    int energy;
+} PLAYER;
+int attackPattern[10]={6,4,4,5,6,4,4,3,6,6};
+typedef struct  
+{
+	int row;
+	int col;
+	int bigRow;
+	int bigCol;
+
+	int rdel;
+	int cdel;
+
+	int width;
+	int height;
+
+	int aniCounter;
+	int aniState;
+	int actionState;
+	int prevAniState;
+	int left;
+    int currFrame;
+
+    int hp;
+    int maxHp;
+} PRACTICE;
+
+PLAYER player;
+PRACTICE practice;
+
+enum { IDLE, ATTACK, BLOCK, RUN, JUMP};
+
+typedef struct{
+    const unsigned char* data;
+    int length;
+    int frequency;
+    int isPlaying;
+    int loops;
+    int duration;
+    int priority;
+    int vbCount;
+}SOUND;
+
+SOUND soundA;
+SOUND soundB;
+SOUND swordSound;
+
+void setupSounds();
+void playSoundA( const unsigned char* sound, int length, int frequency, int loops);
+void playSoundB( const unsigned char* sound, int length, int frequency, int loops);
+void muteSound();
+void unmuteSound();
+void stopSound();
+void setupInterrupts();
+void interruptHandler();
+
+const unsigned char* spaceSound;
+int measure = 0;
+
+unsigned short scanLineCounter;
+
+int main()
+{
+
+	setupInterrupts();
+	setupSounds();
+
+	initStart();
+
+	while(1)
+	{
+		oldButtons = buttons;
+		buttons = BUTTONS;
+
+		switch(state)
+		{
+			case START:
+				updateStart();
+				break;
+			case GAME:
+				updateGame();
+				break;
+			case WIN:
+				//updateWin();
+				break;
+			case LOSE:
+				//updateLose();
+				break;
+		}
+	}
+	return 0;
+}
+
+void initStart()
+{
+	// Look in myLib.h for the correct #defines
+	REG_DISPCTL = MODE0 | BG0_ENABLE | BG1_ENABLE;
+
+	REG_BG0CNT = CBB(0) | SBB(27) | BG_SIZE1;
+	REG_BG1CNT = CBB(1) | SBB(26) | BG_SIZE0;
+	//   - Background 0 is the front most layer
+	// Tell them the sizes to use
+	// BG0 is 64x32 tiles (512x256) pixels
+	// BG1 is 32x32 tiles (256x256) pixels
+	// Then tell them which character block to use  
+	// and which screen block to use (make sure you take the sizes into account) 
+
+	loadPalette(treesPal);
+
+	DMANow(3, treesTiles,&CHARBLOCKBASE[0], treesTilesLen/2);
+
+	DMANow(3, treesMap,&SCREENBLOCKBASE[27], treesMapLen/2);
+	// We won't use loadMap here since it is slower and we do not need to change subPalettes
+	
+
+	DMANow(3, furtherTreesTiles,&CHARBLOCKBASE[1], furtherTreesTilesLen/2);
+	loadMap(furtherTreesMap, furtherTreesMapLen/2, NORMALSKY, 26);
+	playSoundA(titleSong,TITLESONGLEN,TITLESONGFREQ, 1);
+	// this function will use the selected subPal for coloring it
+	
+	
+	hOff = 0;
+
+	state = START;
+}
+
+void updateStart()
+{
+	if(BUTTON_PRESSED(BUTTON_UP))
+	{
+		hOff--;
+	}
+	if(BUTTON_PRESSED(BUTTON_DOWN))
+	{
+		hOff++;
+	}
+	if (BUTTON_PRESSED(BUTTON_START))
+	{
+		initGame();
+		playSoundA(gameM2,GAMEM2LEN,GAMEM2FREQ, 1);
+	}
+
+	waitForVblank();
+	REG_BG0HOFS = hOff;
+	REG_BG1HOFS = hOff/2;
+	}
+
+void initGame()
+{
+	REG_DISPCTL = MODE0 | BG0_ENABLE | BG1_ENABLE | SPRITE_ENABLE | SPRITE_MODE_1D;
+	REG_BG0CNT = CBB(0) | SBB(27) | BG_SIZE0 | COLOR256;	
+	
+	loadPalette(nearBackgroundPal);
+	DMANow(3, nearBackgroundTiles, &CHARBLOCKBASE[0], nearBackgroundTilesLen/2);
+	DMANow(3, nearBackgroundMap, &SCREENBLOCKBASE[27], nearBackgroundMapLen/2);
+	
+	hideSprites();
+	
+	hOff = 0;
+	vOff = 96;
+	player.col = 120-12;
+	player.bigRow = 64<<4;
+	player.bigCol = 108<<4;
+	player.rdel = 0;
+	player.cdel = 0;
+	player.width = 32;
+	player.height = 64;
+	player.aniCounter = 0;
+	player.actionState = IDLE;
+	player.prevAniState = 0;
+	player.left = 0;
+    player.currFrame = 0;
+	player.maxHp=5;
+    player.hp=player.maxHp;
+    player.combo=0;
+    player.comboTimer=0;
+    player.energy=0;
+
+    practice.col = 120-12;
+	practice.bigRow = 64<<4;
+	practice.bigCol = 108<<4;
+	practice.width = 64;
+	practice.height = 64;
+	practice.aniCounter = 0;
+	practice.actionState = IDLE;
+	practice.prevAniState = 0;
+	practice.left = 0;
+    practice.currFrame = 0;
+	practice.maxHp=5;
+    practice.hp=practice.maxHp;
+    state = GAME;
+}
+
+void updateGame()
+{
+	if(BUTTON_PRESSED(BUTTON_UP))
+	{
+		if ((!collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height,(player.bigCol>>4),256)] || !collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height,((player.bigCol>>4))+player.width-1,256)]) && player.actionState!=2)
+		{
+			player.rdel-=64;
+			player.actionState=JUMP;
+
+		}
+	}
+	//Running
+	if(BUTTON_HELD(BUTTON_LEFT))
+	{
+		if (player.actionState!=ATTACK || player.currFrame<2)
+			{
+				player.left=1;
+			}
+		if ((collisionmapBitmap[OFFSET((player.bigRow>>4),(player.bigCol>>4)-1,256)] && collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height-9,(player.bigCol>>4)-1,256)])
+				&& (!player.actionState || player.actionState==RUN || player.actionState==JUMP))
+		{
+			player.cdel=-32;
+			if(!player.actionState)
+			{
+				player.actionState=RUN;
+			}
+		}
+	}
+	if(BUTTON_HELD(BUTTON_RIGHT))
+	{
+		if (player.actionState!=ATTACK || player.currFrame<2)
+			{
+				player.left=0;
+			}
+		if ((collisionmapBitmap[OFFSET((player.bigRow>>4),(player.bigCol>>4)+player.width,256)] && collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height-9,(player.bigCol>>4)+player.width,256)])
+				&& (!player.actionState || player.actionState==RUN || player.actionState==JUMP))
+		{
+			player.cdel=32;
+			if(!player.actionState)
+			{
+				player.actionState=RUN;
+			}
+		}
+	}
+	//Blocking
+	if(BUTTON_HELD(BUTTON_B))
+	{
+		if (!(collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height+1,(player.bigCol>>4),256)] && collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height+1,(player.bigCol>>4)+player.width,256)]) && player.actionState!=1)
+		{
+			player.actionState=BLOCK;
+			if (player.prevAniState!=BLOCK) player.currFrame=0;
+			player.cdel=0;
+		}
+	}
+	//Attacking
+	if(BUTTON_PRESSED(BUTTON_A))
+	{
+		if (!(collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height,(player.bigCol>>4),256)] && collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height,(player.bigCol>>4)+player.width-1,256)]))
+		{
+			player.actionState=ATTACK;
+			player.cdel=0;
+			if (!player.queueSwing) player.queueSwing=1;
+		}
+	}
+	//Idle when not doing things
+	if (!(BUTTON_PRESSED(BUTTON_A) || BUTTON_HELD(BUTTON_LEFT) || BUTTON_HELD(BUTTON_RIGHT) || BUTTON_HELD(BUTTON_B) || player.actionState==ATTACK || player.actionState==JUMP || player.actionState==BLOCK))
+	{
+		player.actionState=IDLE;
+		player.cdel=0;
+	}
+
+	//landing
+	if(!(collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height+(player.rdel>>4),(player.bigCol>>4),256)] && collisionmapBitmap[OFFSET((player.bigRow>>4)+player.height+(player.rdel>>4),(player.bigCol>>4)+player.width-33,256)]))
+	{
+		player.bigRow+=player.rdel;
+		player.rdel=0;
+		player.bigRow=(((player.bigRow>>4)/8)*8)<<4;
+		if(player.actionState==JUMP)player.actionState=IDLE;
+	}
+	//Falling
+	else
+	{
+		player.actionState=JUMP;
+		if (player.rdel<12<<4)player.rdel+=2;
+
+	}
+	player.bigRow+=player.rdel;
+	player.bigCol+=player.cdel;
+
+
+	//TODO Move camera based on player movement
+	player.row=(player.bigRow>>4)-vOff;
+	if ((player.bigRow>>4)>256) player.bigRow-=256<<4;
+	player.col=(player.bigCol>>4)-48*player.left-hOff;
+	if(!player.left && (player.bigCol>>4)-hOff>72)
+	{
+		//hOff+=2;
+	}
+	if(player.left && (player.bigCol>>4)-hOff<-72)
+	{
+		//hOff-=2;
+	}
+
+	practice.row=(practice.bigRow>>4)-vOff;
+	practice.col=(practice.bigCol>>4)+37*practice.left-hOff;
+
+	REG_BG0HOFS = hOff;
+	REG_BG0VOFS = vOff;
+	
+	animate();
+	updateOAM();
+	
+	DMANow(3, shadowOAM, OAM, 512);
+	waitForVblank();
+}
+
+void animate()
+{
+	animatePlayer();
+	animatePractice();
+}
+void animatePlayer()
+{
+	DMANow(3, playerSpritesPal, SPRITE_PALETTE, playerSpritesPalLen/2);
+	switch(player.actionState)
+	{
+		case IDLE:
+		{
+			if(player.aniCounter % 45 == 0) 
+		    {
+				player.aniCounter = 0;
+				if (player.currFrame >= 1) player.currFrame = 0;
+				else player.currFrame++;
+		    }
+			break;
+		}
+		case ATTACK:
+		{
+			if(player.aniCounter % 5== 0) 
+		    {
+				player.aniCounter = 0;
+				if (player.currFrame >= 9)
+					player.actionState=IDLE;
+				else if (player.currFrame == 4 && !player.queueSwing) player.currFrame = 9;
+				else
+					{
+						if (!player.currFrame)player.queueSwing=0;
+						player.currFrame++;
+						player.bigCol+=(16-32*player.left)*(player.currFrame/6);
+					}
+					if (player.currFrame==3 || player.currFrame==7)
+						{
+							switch(rand()%3)
+							{
+								case 0:
+									swordSound.data=swordSound1;
+									swordSound.length=SWORDSOUND1LEN;
+									swordSound.frequency=SWORDSOUND1FREQ;
+									break;
+								case 1:
+									swordSound.data=swordSound2;
+									swordSound.length=SWORDSOUND2LEN;
+									swordSound.frequency=SWORDSOUND2FREQ;
+									break;
+								case 2:
+									swordSound.data=swordSound3;
+									swordSound.length=SWORDSOUND3LEN;
+									swordSound.frequency=SWORDSOUND3FREQ;
+								break;
+							}
+							playSoundB(swordSound.data, swordSound.length, swordSound.frequency,0);
+						}
+		    }
+			break;
+		}
+		case BLOCK:
+		{
+			if(player.aniCounter % 2 == 0) 
+		    {
+				player.aniCounter = 0;
+				if (!BUTTON_HELD(BUTTON_B) && player.currFrame==3) player.actionState=IDLE;	
+				if (player.currFrame < 3)player.currFrame++;
+				else player.currFrame=3;
+		    }
+			break;
+		}
+		case RUN:
+		{
+			if(player.aniCounter % 6 == 0) 
+		    {
+				player.aniCounter = 0;
+				if (player.currFrame >= 5) player.currFrame = 0;
+				else player.currFrame++;
+		    }
+			break;
+		}
+		case JUMP:
+		{
+			player.aniCounter = 0;
+		    player.currFrame=2;
+		    if (player.rdel<0) player.currFrame=1;
+			break;
+		}
+	}
+	if(player.prevAniState!=player.actionState)
+	{
+		player.currFrame=0;
+		player.aniCounter=0;
+	}
+	player.prevAniState=player.actionState;
+	player.aniCounter++;
+}
+void animatePractice()
+{
+	practice.aniCounter++;
+	if(practice.aniCounter % 18 == 0) 
+    {
+		practice.aniCounter = 0;
+		if (practice.currFrame==6)
+		{
+			practice.left=1;
+			practice.col+=37;
+		}
+		else if (practice.currFrame==1) {
+			practice.left=0;
+			practice.col-=37;
+		}
+    }
+}
+
+void updateOAM()
+{
+	int off=0;
+	switch (player.actionState)
+	{
+		case IDLE:
+			break;	
+		case ATTACK:
+			off+=2;
+			break;
+		case BLOCK:
+			off+=12;
+			break;
+		case RUN:
+			off+=16;
+			break;
+		case JUMP:
+			off+=22;
+			break;
+	}
+	DMANow(3, &playerSpritesTiles[(player.currFrame + off)*1024], &CHARBLOCKBASE[4], (64*64/4));
+	shadowOAM[0].attr0 = (ROWMASK & player.row) | ATTR0_4BPP | ATTR0_SQUARE;
+	shadowOAM[0].attr1 = (COLMASK & player.col) | ATTR1_SIZE64 | player.left<<12;
+	shadowOAM[0].attr2 = 0;
+}
+
+void hideSprites()
+{
+    int i;for(i = 0; i < 128; i++)
+    {
+         shadowOAM[i].attr0 = ATTR0_HIDE;
+    }
+}
+
+void setupSounds()
+{
+    REG_SOUNDCNT_X = SND_ENABLED;
+
+	REG_SOUNDCNT_H = SND_OUTPUT_RATIO_100 | 
+                     DSA_OUTPUT_RATIO_100 | 
+                     DSA_OUTPUT_TO_BOTH | 
+                     DSA_TIMER0 | 
+                     DSA_FIFO_RESET |
+                     DSB_OUTPUT_RATIO_100 | 
+                     DSB_OUTPUT_TO_BOTH | 
+                     DSB_TIMER1 | 
+                     DSB_FIFO_RESET;
+
+	REG_SOUNDCNT_L = 0;
+}
+
+void playSoundA( const unsigned char* sound, int length, int frequency, int loops) {
+        dma[1].cnt = 0;
+	
+        int ticks = PROCESSOR_CYCLES_PER_SECOND/frequency;
+	
+        DMANow(1, sound, REG_FIFO_A, DMA_DESTINATION_FIXED | DMA_AT_REFRESH | DMA_REPEAT | DMA_32);
+	
+        REG_TM0CNT = 0;
+	
+        REG_TM0D = -ticks;
+        REG_TM0CNT = TIMER_ON;
+	
+		soundA.data = sound;
+		soundA.length = length;
+		soundA.frequency = frequency;
+		soundA.loops = loops;
+		soundA.isPlaying = 1;
+		soundA.duration = (VBLANK_FREQ*length)/frequency;
+		soundA.vbCount = 0;
+}
+
+
+void playSoundB( const unsigned char* sound, int length, int frequency, int loops) {
+
+        dma[2].cnt = 0;
+
+        int ticks = PROCESSOR_CYCLES_PER_SECOND/frequency;
+
+        DMANow(2, sound, REG_FIFO_B, DMA_DESTINATION_FIXED | DMA_AT_REFRESH | DMA_REPEAT | DMA_32);
+
+        REG_TM1CNT = 0;
+	
+        REG_TM1D = -ticks;
+        REG_TM1CNT = TIMER_ON;
+
+        soundB.data=sound;
+        soundB.length=length;
+		soundB.frequency=frequency;
+		soundB.loops=loops;
+		soundB.isPlaying=1;
+		soundB.vbCount = 0;
+		soundB.duration=(VBLANK_FREQ*soundB.length)/soundB.frequency;
+		soundB.priority=1;
+}
+
+void pauseSound()
+{
+	soundA.isPlaying=0;
+	soundB.isPlaying=0;
+	REG_TM0CNT = 0;
+	REG_TM1CNT = 0;
+}
+
+void unpauseSound()
+{
+	soundA.isPlaying=1;
+	soundB.isPlaying=1;
+	REG_TM0CNT = TIMER_ON;
+	REG_TM1CNT = TIMER_ON;
+}
+
+void stopSound()
+{
+	soundA.isPlaying=0;
+	soundB.isPlaying=0;
+	dma[1].cnt=0;
+	dma[2].cnt=0;
+	REG_TM0CNT=0;
+	REG_TM1CNT=0;
+}
+
+void setupInterrupts()
+{
+	REG_IME = 0;
+	REG_INTERRUPT=(unsigned int)interruptHandler;
+	REG_IE |= INT_VBLANK;
+	REG_DISPSTAT |= INT_VBLANK_ENABLE;
+	REG_IME = 1;
+}
+
+void interruptHandler()
+{
+	REG_IME = 0;
+	if(REG_IF & INT_VBLANK)
+	{
+		if (soundA.isPlaying){
+			soundA.vbCount++;
+			if(soundA.vbCount>=soundA.duration)
+			{
+				if(soundA.loops)
+				{
+					playSoundA(soundA.data,soundA.length,soundA.frequency,soundA.loops);
+				}
+				else
+				{
+					dma[1].cnt=0;
+					soundA.isPlaying=0;
+					REG_TM0CNT=0;
+				}
+			}
+		}
+		if (soundB.isPlaying){
+			soundB.vbCount++;
+			if(soundB.vbCount>=soundB.duration)
+			{
+				if(soundB.loops)
+				{
+					playSoundB(soundB.data,soundB.length,soundB.frequency,soundB.loops);
+				}
+				else
+				{
+					dma[2].cnt=0;
+					soundB.isPlaying=0;
+					REG_TM1CNT=0;
+				}
+			}
+		}
+
+		REG_IF = INT_VBLANK; 
+	}
+
+	REG_IME = 1;
+}
