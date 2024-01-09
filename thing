@@ -1,0 +1,28 @@
+#include "myLib.h"
+
+typedef struct  
+{
+	int row;
+	int col;
+	int bigRow;
+	int bigCol;
+	int rdel;
+	int cdel;
+	int width;
+	int height;
+	int aniCounter;
+	int aniState;
+	int gravTimer;
+	int actionState;
+	int prevAniState;
+	int left;
+    int currFrame;
+    int hide;
+    int queueSwing;
+
+    int hp;
+    int maxHp;
+    int combo;
+    int comboTimer;
+    int energy;
+} PLAYER;
